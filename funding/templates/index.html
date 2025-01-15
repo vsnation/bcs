@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% from 'proposal/macros/table.html' import proposal_table %}
+
+<div class="body flex-grow-1 px-3">
+  <div class="container-lg homepage">
+
+    <div class="callout callout-info bg-white">
+      BeamPrivacy is a decentralized, community-driven project, empowering members to participate and secure funding for proposals through its innovative funding system.
+      <br><br>
+      To see how to submit your own proposal or idea, <a href="/disclaimer">click here</a>.
+    </div>
+
+    <div class="row homepage-cards">
+      <div class="col-sm-6 col-lg-6">
+        <a href="/ideas">
+          <div class="card mb-4">
+            <img class="card-img-top" src="static/idea.png" alt="">
+            <div class="card-body">
+              <h5 class="card-title">Ideas</h5>
+              <p class="card-text">If you have an idea for a feature, task, or service, this is the place to pitch it for discussion.</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-sm-6 col-lg-6">
+        <a href="/funding-required">
+          <div class="card mb-4">
+            <img class="card-img-top" src="static/funding.png" alt="">
+            <div class="card-body">
+              <h5 class="card-title">Funding Required</h5>
+              <p class="card-text">Once a pitched and approved idea has been picked up by a developer or team it goes here for community fundraising.</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-sm-6 col-lg-6">
+        <a href="/work-in-progress">
+          <div class="card mb-4">
+            <img class="card-img-top" src="static/wip.png" alt="">
+            <div class="card-body">
+              <h5 class="card-title">Work in Progress</h5>
+              <p class="card-text">Approved ideas that have been picked up and successfully funded are moved here so their progress can be monitored.</p>
+
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-sm-6 col-lg-6">
+        <a href="/completed-proposals">
+          <div class="card mb-4">
+            <img class="card-img-top" src="static/completed.png" alt="">
+            <div class="card-body">
+              <h5 class="card-title">Completed Tasks</h5>
+              <p class="card-text">Once an item has been completed, all milestones met, and all funds paid out, the thread moves here.</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
+    </div>
+    <div class="row">
+      <div class="col-sm-12 col-lg-12">
+        <h4 class="mb-3 mt-4">Proposal overview</h4>
+      </div>
+    </div>
+    <div class="row">
+      <div class="">
+        <div class="col-sm-12 col-lg-12">
+          {% from 'proposal/macros/table.html' import proposal_table %}
+          {{ proposal_table(title, status, proposals, FUNDING_STATUSES) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- /.container -->
+{% endblock %}

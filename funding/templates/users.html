@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="body flex-grow-1 px-3">
+  <div class="container-lg">
+
+    <div class="row mb-4">
+      <h3 class="mb-3">Users <small style="font-size: 16px;">({{ users | length }})</small> </h3>
+
+      <div class="col-sm-5 col-lg-5">
+
+        <table class="table table-light table-proposals mb-0">
+          <thead class="table-light fw-semibold">
+            <tr class="align-middle">
+              <th class="text-center">
+                <svg class="icon">
+                  <use xlink:href="/static/admin/vendors/@coreui/icons/svg/free.svg#cil-people"></use>
+                </svg>
+              </th>
+              <th>Username</th>
+              <th class="text-center">Proposals</th>
+            </tr>
+          </thead>
+          <tbody>
+              {% for u in users %}
+
+                <tr class="align-middle" style="opacity:{% if not u.enabled %}50{% else %}100{% endif %}%">
+
+                  <td class="text-center">
+                    <a href="/users/{{ u.username }}">
+                      <div class="avatar avatar-md">
+                        <img class="avatar-img" src="/static/lib/gravatar/avatar.png" alt="avatar">
+                        <span class="avatar-status bg-success"></span>
+                      </div>
+                    </a>
+                  </td>
+
+                  <td>
+                    <a href="{{ user_link }}">
+                      <div><b>{{ u.username }}</b></div>
+                      <div class="small text-medium-emphasis">
+                        {{ u.registered_on.strftime('%Y-%m-%d') }}
+                      </div>
+                    </a>
+                  </td>
+
+                  <td class="text-center">
+                    <b>{{ u.proposals | length }}</b>
+                  </td>
+                </tr>
+              {% endfor %}
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+
+
+    <div class="row">
+      <div class="col-md-12">
+
+        <a href="/">
+          <button type="button" class="btn btn-success">
+            <svg class="icon">
+              <use xlink:href="/static/admin/vendors/@coreui/icons/svg/free.svg#cil-arrow-left"></use>
+            </svg>
+            Back to overview
+          </button>
+        </a>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- /.container -->
+{% endblock %}

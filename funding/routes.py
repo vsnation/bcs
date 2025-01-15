@@ -1,3 +1,4 @@
+import traceback
 import uuid
 from datetime import datetime
 
@@ -7,144 +8,164 @@ from flask_login import login_user , logout_user , current_user
 from dateutil.parser import parse as dateutil_parse
 from flask_yoloapi import endpoint, parameter
 import json
+import markdown
+
+from funding.bin.anti_xss import such_xss
+import markdown2
+import re
 
 import settings
 from funding.factory import app, db, cache
 from funding.orm import Proposal, User, Comment
 
 
+
+
 @app.route('/')
 def index():
-    return redirect(url_for('proposals'))
+    proposals = Proposal.find_by_args(status=1) + Proposal.find_by_args(status=2) + \
+                Proposal.find_by_args(status=3) + Proposal.find_by_args(status=4)
+    return make_response(render_template('index.html', proposals=proposals, FUNDING_STATUSES=settings.FUNDING_STATUSES))
 
 
-@app.route('/about')
-def about():
-    return make_response(render_template('about.html'))
+@app.route('/ideas')
+@app.route('/funding-required')
+@app.route('/work-in-progress')
+@app.route('/completed-proposals')
+def proposals_overview():
+    # Map route paths to corresponding statuses
+    route_status_mapping = {
+        'ideas': 1,
+        'funding-required': 2,
+        'work-in-progress': 3,
+        'completed-proposals': 4,
+    }
+
+    # Extract the current route name
+    route_name = request.path.strip('/')
+
+    # Get the corresponding status for the route
+    status = route_status_mapping.get(route_name)
+    if not status:
+        return make_response("Page not found", 404)
+
+    # Fetch proposals based on the determined status
+    proposals = Proposal.find_by_args(status=status)
+
+    # Render the appropriate template with variables
+    return make_response(
+        render_template(
+            'proposal/overview.html',
+            title=settings.FUNDING_STATUSES[status],
+            proposals=proposals
+        )
+    )
 
 
-@app.route('/api')
-def api():
-    return make_response(render_template('api.html'))
+# Open Edit proposal form
+@app.route('/proposals/<slug>/edit')
+def proposal_edit(slug):
+    p = Proposal.query.filter_by(href=slug).first()
+    if not p:
+        return make_response(redirect(url_for('index')))
+
+    funding_categories = settings.FUNDING_CATEGORIES  # Add categories from your settings
+    return make_response(
+        render_template(
+            'proposal/edit.html',
+            proposal=p,
+            funding_categories=funding_categories,
+            headline=p.headline,
+            content=p.content,
+            funds_target=p.funds_target,
+            addr_receiving=p.addr_receiving
+        )
+    )
 
 
-@app.route('/proposal/add/disclaimer')
+# Disclaimer before the form to add a proposal
+@app.route('/disclaimer')
 def proposal_add_disclaimer():
     return make_response(render_template('proposal/disclaimer.html'))
 
-
-@app.route('/proposal/add')
+# Add proposal form
+@app.route('/disclaimer/add')
 def proposal_add():
     if current_user.is_anonymous:
         return make_response(redirect(url_for('login')))
     default_content = settings.PROPOSAL_CONTENT_DEFAULT
     return make_response(render_template('proposal/edit.html', default_content=default_content))
 
+# Submit or Update Proposal data
+@app.route('/api/proposals/upsert', methods=['POST'])
+def proposal_api_upsert():
+    # Ensure the request contains JSON
+    data = request.get_json()
+    if not data:
+        return make_response(jsonify('Invalid request'), 400)
 
-@app.route('/proposal/comment', methods=['POST'])
-@endpoint.api(
-    parameter('pid', type=int, required=True),
-    parameter('text', type=str, required=True),
-    parameter('cid', type=int, required=False)
-)
-def proposal_comment(pid, text, cid):
-    if current_user.is_anonymous:
-        flash('not logged in', 'error')
-        return redirect(url_for('proposal', pid=pid))
-    if len(text) <= 3:
-        flash('comment too short', 'error')
-        return redirect(url_for('proposal', pid=pid))
-    try:
-        Comment.add_comment(user_id=current_user.id, message=text, pid=pid, cid=cid)
-    except Exception as ex:
-        flash('Could not add comment: %s' % str(ex), 'error')
-        return redirect(url_for('proposal', pid=pid))
-
-    flash('Comment posted.')
-    return redirect(url_for('proposal', pid=pid))
-
-
-@app.route('/proposal/<int:pid>/comment/<int:cid>')
-def propsal_comment_reply(cid, pid):
-    from funding.orm import Comment
-    c = Comment.find_by_id(cid)
-    if not c or c.replied_to:
-        return redirect(url_for('proposal', pid=pid))
-    p = Proposal.find_by_id(pid)
-    if not p:
-        return redirect(url_for('proposals'))
-    if c.proposal_id != p.id:
-        return redirect(url_for('proposals'))
-
-    return make_response(render_template('comment_reply.html', c=c, pid=pid, cid=cid))
-
-
-@app.route('/proposal/<int:pid>')
-def proposal(pid):
-    p = Proposal.find_by_id(pid=pid)
-    if not p:
-        return make_response(redirect(url_for('proposals')))
-    p.get_comments()
-    return make_response(render_template(('proposal/proposal.html'), proposal=p))
-
-
-@app.route('/api/proposal/add', methods=['POST'])
-@endpoint.api(
-    parameter('title', type=str, required=True, location='json'),
-    parameter('content', type=str, required=True, location='json'),
-    parameter('pid', type=int, required=False, location='json'),
-    parameter('funds_target', type=str, required=True, location='json'),
-    parameter('addr_receiving', type=str, required=True, location='json'),
-    parameter('category', type=str, required=True, location='json'),
-    parameter('status', type=int, required=True, location='json', default=1)
-)
-def proposal_api_add(title, content, pid, funds_target, addr_receiving, category, status):
-    import markdown2
+    # Extract fields from JSON payload
+    title = data.get('title')
+    content = data.get('markdown')
+    pid = data.get('pid')
+    funds_target = data.get('funds_target')
+    addr_receiving = data.get('addr_receiving')
+    discourse_topic_link = data.get('discourse_topic_link')
+    category = data.get('category', settings.FUNDING_CATEGORIES[0])
+    status = 1
 
     if current_user.is_anonymous:
-        return make_response(jsonify('err'), 500)
+        return make_response(jsonify('User not authenticated'), 401)
 
-    if len(title) <= 8:
-        return make_response(jsonify('title too short'), 500)
+    # Validate inputs
+    if not title or len(title) < 8:
+        return make_response(jsonify('Title too short'), 400)
 
-    if len(content) <= 20:
-        return make_response(jsonify('content too short'), 500)
+    if not content or len(content) < 20:
+        return make_response(jsonify('Content too short'), 400)
 
-    if category and category not in settings.FUNDING_CATEGORIES:
-        return make_response(jsonify('unknown category'), 500)
+    if category not in settings.FUNDING_CATEGORIES:
+        return make_response(jsonify('Unknown category'), 400)
 
-    if status not in settings.FUNDING_STATUSES.keys():
-        make_response(jsonify('unknown status'), 500)
+    # if status not in settings.FUNDING_STATUSES.keys():
+    #     return make_response(jsonify('Unknown status'), 400)
 
     if status != 1 and not current_user.admin:
-        return make_response(jsonify('no rights to change status'), 500)
+        return make_response(jsonify('Insufficient rights to change status'), 403)
 
+    # Escape content and convert to HTML
     try:
-        from funding.bin.anti_xss import such_xss
         content_escaped = such_xss(content)
         html = markdown2.markdown(content_escaped, extras=["tables"], safe_mode="escape")
     except Exception as ex:
-        return make_response(jsonify('markdown error'), 500)
+        return make_response(jsonify(f'Markdown error: {str(ex)}'), 500)
+
+    # Helper function to create a slug for the `href`
+    def generate_slug(headline):
+        return re.sub(r'[^a-zA-Z0-9-]', '', headline.replace(' ', '-')).lower()
 
     if pid:
+        # Edit existing proposal
         p = Proposal.find_by_id(pid=pid)
         if not p:
-            return make_response(jsonify('proposal not found'), 500)
+            return make_response(jsonify('Proposal not found'), 404)
 
         if p.user.id != current_user.id and not current_user.admin:
-            return make_response(jsonify('no rights to edit this proposal'), 500)
+            return make_response(jsonify('No rights to edit this proposal'), 403)
 
         p.headline = title
         p.content = content
         p.html = html
+        p.href = generate_slug(title)  # Update href
+        p.discourse_topic_link = discourse_topic_link
         if addr_receiving:
             p.addr_receiving = addr_receiving
         if category:
             p.category = category
 
-        # detect if an admin moved a proposal to a new status and auto-comment
+        # Handle status change with automated comment
         if p.status != status and current_user.admin:
-            msg = "Moved to status \"%s\"." % settings.FUNDING_STATUSES[status].capitalize()
+            msg = f"Moved to status \"{settings.FUNDING_STATUSES[status].capitalize()}\"."
             try:
                 Comment.add_comment(user_id=current_user.id, message=msg, pid=pid, automated=True)
             except:
@@ -153,138 +174,124 @@ def proposal_api_add(title, content, pid, funds_target, addr_receiving, category
         p.status = status
         p.last_edited = datetime.now()
     else:
-        try: 
-            funds_target = float(funds_target) 
-        except Exception as ex:
-            return make_response(jsonify('letters detected'),500)
-        if funds_target < 1:
-            return make_response(jsonify('Proposal asking less than 1 error :)'), 500)
-        if len(addr_receiving) not in settings.COIN_ADDRESS_LENGTH:
-            return make_response(jsonify(f'Faulty address, should be of length: {" or ".join(map(str, settings.COIN_ADDRESS_LENGTH))}'), 500)
+        # Create new proposal
+        try:
+            funds_target = float(funds_target)
+        except ValueError:
+            return make_response(jsonify('Funds target must be a number'), 400)
 
-        p = Proposal(headline=title, content=content, category='misc', user=current_user)
+        if funds_target < 1:
+            return make_response(jsonify('Proposal asking less than 1 BEAM is not allowed'), 400)
+
+        p = Proposal(
+            headline=title,
+            content=content,
+            category=category,
+            user=current_user
+        )
         p.html = html
+        p.href = generate_slug(title)  # Generate href for the new proposal
         p.last_edited = datetime.now()
         p.funds_target = funds_target
         p.addr_receiving = addr_receiving
-        p.category = category
         p.status = status
-
-        # generate integrated address
-        try:
-            url = f'http://{settings.RPC_HOST}:{settings.RPC_PORT}/'
-            payload = json.dumps({"method": "getnewaddress"})
-            headers = {'content-type': "application/json"}
-            rpc_user = f'{settings.RPC_USERNAME}'
-            rpc_password = f'{settings.RPC_PASSWORD}'
-            r = requests.request("POST", url, data=payload, headers=headers, auth=(rpc_user, rpc_password))
-            r.raise_for_status()
-            blob = r.json()
-
-            assert 'result' in blob
-        except Exception as ex:
-            raise
-
-        p.addr_donation = blob['result']
-        p.payment_id = blob['result']
-
+        p.addr_donation = "0x00000000"  # Placeholder for donation address
+        p.payment_id = "0x00000000"  # Placeholder for payment ID
+        p.discourse_topic_link = discourse_topic_link
 
         db.session.add(p)
 
     db.session.commit()
     db.session.flush()
 
-    # reset cached stuffz
+    # Reset cached stats
     cache.delete('funding_stats')
 
-    return make_response(jsonify({'url': url_for('proposal', pid=p.id)}))
+    return make_response(jsonify({'url': url_for('proposals', slug=p.href)}))
 
 
-@app.route('/proposal/<int:pid>/edit')
-def proposal_edit(pid):
-    p = Proposal.find_by_id(pid=pid)
-    if not p:
-        return make_response(redirect(url_for('proposals')))
 
-    return make_response(render_template('proposal/edit.html', proposal=p))
+@app.route('/about')
+def about():
+    return make_response(render_template('about.html'))
+
+@app.route('/lib/markdown/html', methods=['POST'])
+def markdown_to_html():
+    try:
+        # Parse the incoming JSON data
+        data = request.json
+        if not data or 'markdown' not in data:
+            return jsonify({"error": "Markdown content is required"}), 400
+
+        # Convert Markdown to HTML
+        md_content = data['markdown']
+        html_content = markdown.markdown(md_content, extensions=["fenced_code", "tables", "toc"])
+
+        # Return the HTML content
+        return jsonify({"html": html_content})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
-@app.route('/search')
-@endpoint.api(
-    parameter('key', type=str, required=False)
-)
-def search(key=None):
+@app.route('/proposals/<slug>')
+def proposals(slug):
+    # Check if the URL ends with `.md`
+    if slug.endswith('.md'):
+        # Strip the `.md` part to get the actual slug
+        slug = slug[:-3]
+
+        # Find the proposal by its href
+        p = Proposal.query.filter_by(href=slug).first()
+        if not p:
+            return make_response("Proposal not found", 404)
+
+        # Return the markdown content as plain text
+        return make_response(p.content, 200, {'Content-Type': 'text/plain; charset=utf-8'})
+
+    # Otherwise, render the proposal page
+    else:
+        p = Proposal.query.filter_by(href=slug).first()
+        if not p:
+            return make_response(redirect(url_for('index')))
+
+        # Get associated comments and other data
+        p.get_comments()
+        return make_response(render_template('proposal/proposal.html', proposal=p, FUNDING_STATUSES=settings.FUNDING_STATUSES))
+
+
+@app.route('/search', methods=['GET'])
+def search():
+    # Extract 'key' from query parameters
+    key = request.args.get('key', default=None)
+
     if not key:
         return make_response(render_template('search.html', results=None, key='Empty!'))
+
+    # Fetch search results based on the provided key
     results = Proposal.search(key=key)
     return make_response(render_template('search.html', results=results, key=key))
 
 
-@app.route('/user/<path:name>')
-def user(name):
-    q = db.session.query(User)
-    q = q.filter(User.username == name)
-    user = q.first()
+@app.route('/users/<username>', methods=['GET'])
+def user_detail(username):
+    """
+    Show details for a specific user by username.
+    """
+    from funding.factory import db
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return make_response(f"User '{username}' not found", 404)
     return render_template('user.html', user=user)
 
 
-@app.route('/proposals')
-@endpoint.api(
-    parameter('status', type=int, location='args', required=False),
-    parameter('page', type=int, location='args', required=False),
-    parameter('cat', type=str, location='args', required=False)
-)
-def proposals(status, page, cat):
-    if not isinstance(status, int) and not isinstance(page, int) and not cat:
-        # no args, render overview
-        proposals = {
-            'proposed': Proposal.find_by_args(status=1, limit=10),
-            'funding': Proposal.find_by_args(status=2, limit=10),
-            'wip': Proposal.find_by_args(status=3, limit=10),
-            'completed': Proposal.find_by_args(status=4, limit=10)}
-        return make_response(render_template('proposal/overview.html', proposals=proposals))
-
-    try:
-        if not isinstance(status, int):
-            status = 1
-        
-        proposals = {
-            'proposed': Proposal.find_by_args(status=1, cat=cat),
-            'funding': Proposal.find_by_args(status=2, cat=cat),
-            'wip': Proposal.find_by_args(status=3, cat=cat),
-            'completed': Proposal.find_by_args(status=4, cat=cat)}
-        return make_response(render_template('proposal/overview.html', proposals=proposals))
-    except:
-        return make_response(redirect(url_for('proposals')))
-
-    return make_response(render_template('proposal/proposals.html',
-                                         proposals=proposals, status=status, cat=cat))
-
-
-@app.route('/donate')
-def donate():
-    return "devfund page currently not working :D"
-
-    data_default = {'sum': 0, 'txs': []}
-    cache_key = 'devfund_txs_in'
-    data = cache.get(cache_key)
-    if not data:
-        daemon = Daemon(url=settings.RPC_LOCATION_DEVFUND,
-                        username=settings.RPC_USERNAME_DEVFUND,
-                        password=settings.RPC_PASSWORD_DEVFUND)
-
-        txs_in = daemon.get_transfers_in_simple()
-        if not txs_in['txs']:
-            cache.set(cache_key, data=data_default, expiry=60)
-        else:
-            txs_in['txs'] = txs_in['txs'][:50]  # truncate to last 50
-            cache.set(cache_key, data=txs_in, expiry=60)
-    else:
-        for tx in data['txs']:
-            tx['datetime'] = dateutil_parse(tx['datetime'])
-        txs_in = data
-
-    return make_response(render_template('donate.html', txs_in=txs_in))
+@app.route('/users', methods=['GET'])
+def users():
+    """
+    List all users.
+    """
+    from funding.factory import db
+    users = User.query.order_by(User.registered_on.desc()).all()
+    return render_template('users.html', users=users)
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -309,94 +316,17 @@ def register():
         return make_response(render_template('register.html'))
 
 
-if settings.OPENID_ENABLED:
-    @app.route("/wow-auth/")
-    def wow_auth():
-        assert "state" in request.args
-        assert "session_state" in request.args
-        assert "code" in request.args
-
-        # verify state
-        if not session.get('auth_state'):
-            return "session error", 500
-        if request.args['state'] != session['auth_state']:
-            return "attack detected :)", 500
-
-        # with this authorization code we can fetch an access token
-        url = f"{settings.OPENID_URL}/token"
-        data = {
-            "grant_type": "authorization_code",
-            "code": request.args["code"],
-            "redirect_uri": settings.OPENID_REDIRECT_URI,
-            "client_id": settings.OPENID_CLIENT_ID,
-            "client_secret": settings.OPENID_CLIENT_SECRET,
-            "state": request.args['state']
-        }
-        try:
-            resp = requests.post(url, data=data)
-            resp.raise_for_status()
-        except:
-            return "something went wrong :( #1", 500
-
-        data = resp.json()
-        assert "access_token" in data
-        assert data.get("token_type") == "bearer"
-        access_token = data['access_token']
-
-        # fetch user information with the access token
-        url = f"{settings.OPENID_URL}/userinfo"
-
-        try:
-            resp = requests.post(url, headers={"Authorization": f"Bearer {access_token}"})
-            resp.raise_for_status()
-            user_profile = resp.json()
-        except:
-            return "something went wrong :( #2", 500
-
-        username = user_profile.get("preferred_username")
-        sub = user_profile.get("sub")
-        if not username:
-            return "something went wrong :( #3", 500
-
-        sub_uuid = uuid.UUID(sub)
-        user = User.query.filter_by(username=username).first()
-        if user:
-            if not user.uuid:
-                user.uuid = sub_uuid
-                db.session.commit()
-                db.session.flush()
-        else:
-            user = User.add(username=username,
-                            password=None, email=None, uuid=sub_uuid)
-        login_user(user)
-        response = redirect(request.args.get('next') or url_for('index'))
-        response.headers['X-Set-Cookie'] = True
-        return response
-
-
 @app.route('/login', methods=['GET', 'POST'])
-@endpoint.api(
-    parameter('username', type=str, location='form', required=False),
-    parameter('password', type=str, location='form', required=False)
-)
-def login(username, password):
-    if settings.OPENID_ENABLED:
-        state = uuid.uuid4().hex
-        session['auth_state'] = state
+def login():
+    if request.method == 'GET':
+        return make_response(render_template('login.html'))
 
-        url = f"{settings.OPENID_URL}/auth?" \
-              f"client_id={settings.OPENID_CLIENT_ID}&" \
-              f"redirect_uri={settings.OPENID_REDIRECT_URI}&" \
-              f"response_type=code&" \
-              f"state={state}"
-
-        return redirect(url)
+    # Extract form data manually
+    username = request.form.get('username')
+    password = request.form.get('password')
 
     if not username or not password:
         flash('Enter username/password pl0x')
-        return make_response(render_template('login.html'))
-
-    if request.method == 'GET':
         return make_response(render_template('login.html'))
 
     from funding.factory import bcrypt

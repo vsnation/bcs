@@ -1,9 +1,18 @@
+import markdown
 from flask import request
 import settings
 from funding.bin.utils import Summary
 from funding.factory import app, db
 from funding.orm import User, Comment
 
+
+# Register a custom filter to render Markdown
+@app.template_filter('markdown')
+def render_markdown(content):
+    if not content:
+        return ""
+    text = markdown.markdown(content, extensions=["fenced_code", "tables", "toc"])
+    return text
 
 @app.context_processor
 def templating():
@@ -16,6 +25,7 @@ def templating():
                 funding_categories=settings.FUNDING_CATEGORIES,
                 funding_statuses=settings.FUNDING_STATUSES,
                 summary_data=summary_data,
+                FUNDING_STATUSES=settings.FUNDING_STATUSES,
                 recent_comments=recent_comments,
                 newest_users=newest_users)
 

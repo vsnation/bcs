@@ -17,9 +17,10 @@ class Summary:
     @staticmethod
     @cache.cached(timeout=600, key_prefix="fetch_prices")
     def fetch_prices():
+        _rates = coin_btc_usd_value()
         return {
-            'coin-btc': coin_btc_value(),
-            'btc-usd': price_cmc_btc_usd()
+            'coin-btc': _rates['beam']['btc'],
+            'coin-usd': _rates['beam']['usd'],
         }
 
     @staticmethod
@@ -62,22 +63,24 @@ def price_cmc_btc_usd():
     except:
         return
 
-def coin_btc_value():
-    headers = {'User-Agent': 'Mozilla/5.0 (Android 4.4; Mobile; rv:41.0) Gecko/41.0 Firefox/41.0'}
+def coin_btc_usd_value():
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Android 4.4; Mobile; rv:41.0) Gecko/41.0 Firefox/41.0',
+        'accept': 'application/json',
+        # 'x-cg-pro-api-key': settings.CG_API_KEY
+   }
     try:
-        r = requests.get('https://api.binance.com/api/v3/ticker/price?symbol=FIROBTC', headers=headers)
+        r = requests.get('https://api.coingecko.com/api/v3/simple/price?ids=beam&vs_currencies=usd,btc', headers=headers)
         r.raise_for_status()
-        return float(r.json().get('price'))
+        return r.json()
     except:
         return
 
-
-def coin_to_usd(amt: float, usd_per_btc: float, btc_per_coin: float):
+def coin_to_usd(amt: float, coin_usd: float):
     try:
-        return round(usd_per_btc / (1.0 / (amt * btc_per_coin)), 2)
+        return round((amt * coin_usd), 2)
     except:
         pass
-
 
 def get_ip():
     return request.headers.get('X-Forwarded-For') or request.remote_addr

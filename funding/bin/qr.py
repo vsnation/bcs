@@ -9,7 +9,7 @@ import settings
 
 class QrCodeGenerator:
     def __init__(self):
-        self.base = 'funding/static/qr'
+        self.base = 'funding/old_static/qr'
         self.image_size = (300, 300)
         self.pil_save_options = {
             'quality': 25,

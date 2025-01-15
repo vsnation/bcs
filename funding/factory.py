@@ -45,6 +45,7 @@ def _setup_db(app: Flask):
         url=settings.PSQL_HOST,
         db=settings.PSQL_DB)
     app.config['SQLALCHEMY_DATABASE_URI'] = uri
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db = SQLAlchemy(app)
     import funding.orm
     db.create_all()
@@ -63,6 +64,7 @@ def create_app():
     app.config['PERMANENT_SESSION_LIFETIME'] = 2678400
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 30
+
     app.secret_key = settings.SECRET
 
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
@@ -89,6 +91,8 @@ def create_app():
     from funding import routes
     from funding import api
     from funding.bin import utils_request
+
+    app.jinja_env.filters['markdown'] = utils_request.render_markdown
 
     app.app_context().push()
     return app

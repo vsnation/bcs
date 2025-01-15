@@ -1,55 +1,82 @@
-{% macro proposal_table(title, status, _proposals) %}
-    <div class="wowtable" data-status="{{ status }}" style="{% if status == 4 %}opacity: 0.3;{% endif %}">
-      <div class="trow header">
-        <div class="item comments">
-          <img style="padding-top:2px;" width="24" src="/static/msg.png">
-        </div>
-        <div class="item small">
-          <span>Funded</span>
-        </div>
-        <div class="item small">
-          <span class="alignl">Date</span>
-        </div>
-        <div class="item small">
-          <span class="alignl">Username</span>
-        </div>
-        <div class="item big">
-          <span>{{title}}</span>
-        </div>
-      </div>
-      <div class="trow divider"></div>
+{% macro proposal_table(title, status, _proposals, FUNDING_STATUSES) %}
 
-      {% for p in _proposals %}
-        <div class="trow body">
-          <div class="item comments">
-            <span>
-              {% if p.comment_count %}
-                  {{p.comment_count}}
-              {% else %}
-                  -
-              {% endif %}
-            </span>
+<table class="table table-light table-proposals mb-0">
+  <thead class="table-light fw-semibold">
+    <tr class="align-middle">
+      <th class="text-center">
+        <svg class="icon">
+          <use xlink:href="/static/admin/vendors/@coreui/icons/svg/free.svg#cil-people"></use>
+        </svg>
+      </th>
+      <th>Proposal</th>
+      <th>Category</th>
+      <th>Status</th>
+      <th>Funding</th>
+      <th class="text-center">Activity</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% if _proposals %}
+      {% for proposal in _proposals %}
+      <tr class="align-middle" style="opacity:100%">
+        <td class="text-center">
+          <a href="/proposals/{{proposal.href}}">
+            <div class="avatar avatar-md">
+              <img class="avatar-img" src="/static/lib/gravatar/avatar.png" alt="avatar">
+              <span class="avatar-status bg-success"></span>
+            </div>
+          </a>
+        </td>
+
+        <td>
+          <a href="/proposals/{{proposal.href}}">
+            <div><b>{{ proposal.headline }}</b></div>
+            <div class="small text-medium-emphasis">
+              <span>By {{ proposal.user }}</span> | Created: {{ proposal.date_added.strftime('%Y-%m-%d') }}
+            </div>
+          </a>
+        </td>
+
+        <td>
+          <b>{{ proposal.category }}</b>
+        </td>
+
+        <td>
+          <b>{{ FUNDING_STATUSES[proposal.status] }}</b>
+        </td>
+
+        <td>
+          <div class="clearfix">
+            <div class="float-start">
+              <div class="fw-semibold">{{ proposal.funds_progress|round(2) }}%</div>
+            </div>
+
+            <div class="float-end">
+              <small class="text-medium-emphasis">{{ proposal.balance.available|round(3) }} BEAM / {{ proposal.funds_target|round(3) }} BEAM</small>
+            </div>
           </div>
-          <div class="item small">
-            <span>
-              {% if p.funds_progress >= 0.1 and p.status >= 2 %}
-                  {{p.funds_progress|int}}%
-              {% else %}
-              -
-              {% endif %}
-            </span>
+
+          <div class="progress progress-thin">
+            <div class="progress-bar bg-success" role="progressbar" style="width: {{ proposal.funds_progress|round(2) }}%" aria-valuenow="{{ proposal.funds_progress|round(2) }}" aria-valuemin="0" aria-valuemax="100"></div>
           </div>
-          <div class="item small">
-            <span class="alignl">{{ p.date_added.strftime('%Y-%m-%d') }}</span>
-          </div>
-          <div class="item small">
-            <span class="alignl"><a href="/user/{{ p.user.username }}">{{ p.user.username }}</a></span>
-          </div>
-          <div class="item big">
-            <a href="/proposal/{{ p.id }}">{{ p.headline }}</a>
-          </div>
-        </div>
+        </td>
+
+        <td class="text-center">
+          <div class="small text-medium-emphasis">Last activity</div>
+          <div class="fw-semibold">{{ proposal.last_edited.strftime('%Y-%m-%d') }}</div>
+        </td>
+      </tr>
       {% endfor %}
-    </div>
+    {% else %}
+      <tr>
+        <td colspan="6" class="text-center">
+          <div class="py-5">
+            <h5 class="text-medium-emphasis">There are no proposals yet.</h5>
+          </div>
+        </td>
+      </tr>
+    {% endif %}
+  </tbody>
+</table>
 
 {% endmacro %}

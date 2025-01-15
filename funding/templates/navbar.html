@@ -1,45 +1,174 @@
-<!-- Navigation -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-    <div class="container">
-        <a class="navbar-brand" href="/">
-            <img id="text" src="/static/img/fcs-navbar.png">
+
+<header class="header mb-4 header-sticky">
+  <div class="container-fluid">
+<!--    beam-logo grid items-center justify-center h-10 w-10 transition-transform duration-[600ms select-none        -->
+<!--    beam-logo grid items-center justify-center h-10 w-10 transition-transform duration-[600ms] hover:will-change-transform select-none scale-125      -->
+
+<!-- select-none pointer-events-none opacity-0 transition duration-500 !opacity-100 h-10 w-10 z-40 item-container scale-0 transition-transform duration-[600ms] ease-in-out will-change-transform   -->
+<!-- select-none pointer-events-none opacity-0 transition duration-500 !opacity-100 h-10 w-10 z-40 item-container scale-0 transition-transform duration-[600ms] ease-in-out will-change-transform scale-125 rotate-90 duration-[600ms] -->
+
+<!-- h-10 w-10 z-40 item-container scale-0 transition-transform duration-[600ms] ease-in-out will-change-transform   -->
+<!-- h-10 w-10 z-40 item-container scale-0 transition-transform duration-[600ms] ease-in-out will-change-transform scale-125 rotate-90 duration-[600ms] -->
+
+    <a href="/" title="Home" class="layout-link">
+      <div class="beam-logo grid items-center justify-center h-10 w-10 transition-transform duration-[600ms] hover:will-change-transform select-none">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 57 40"
+          alt="BEAM Logo"
+          class="h-10 w-10 item-container -mt-0.5 z-50"
+          style="grid-column: 1; grid-row: 1;"
+        >
+          <defs>
+            <linearGradient id="x" x1="0%" x2="100%" y1="50%" y2="50%">
+              <stop offset="0%" stop-color="#24C1FF" />
+              <stop offset="48.99%" stop-color="#24C1FF" />
+              <stop offset="49%" stop-color="#0B76FF" />
+              <stop offset="100%" stop-color="#0B76FF" />
+            </linearGradient>
+            <linearGradient id="z" x1="0%" x2="100%" y1="50%" y2="50%">
+              <stop offset="0%" stop-color="#6BFFFA" />
+              <stop offset="49.99%" stop-color="#6BFFFA" />
+              <stop offset="50%" stop-color="#00E2C2" />
+              <stop offset="100%" stop-color="#00E2C2" />
+            </linearGradient>
+            <linearGradient id="aa" x1="0%" x2="54.8%" y1="50.2%" y2="50.2%">
+              <stop offset="0%" stop-opacity="0" />
+              <stop offset="100%" stop-color="#FFF" />
+            </linearGradient>
+            <linearGradient id="bb" x1="99.4%" x2="35.8%" y1="49.8%" y2="49.8%">
+              <stop offset="0%" stop-opacity="0" />
+              <stop offset="100%" stop-color="#FF51FF" />
+            </linearGradient>
+            <linearGradient id="cc" x1="100.4%" x2="48.9%" y1="50.1%" y2="50.1%">
+              <stop offset="0%" stop-opacity="0" />
+              <stop offset="100%" stop-color="#A18CFF" />
+            </linearGradient>
+            <linearGradient id="dd" x1="99.9%" x2="41.1%" y1="50.2%" y2="50.2%">
+              <stop offset="0%" stop-opacity="0" />
+              <stop offset="100%" stop-color="#AB38E6" />
+            </linearGradient>
+          </defs>
+          <g fill="none">
+            <path fill="url(#x)" d="M28 0L52 40H4L28 0Zm0 13L17 33h22L28 13Z" />
+            <path fill="url(#z)" d="M28 18l8 13H21z" />
+            <mask id="raysMask">
+              <rect width="100%" height="100%" fill="white" />
+              <circle id="maskCircle" cx="28.5" cy="20" r="0" fill="black" />
+            </mask>
+          </g>
+          <g fill="none" mask="url(#raysMask)">
+            <path id="ray1" class="ray" fill="url(#aa)" d="m0 13 28 13v1L0 21z" />
+            <path id="ray2" class="ray" fill="url(#bb)" d="M57 9 28 26l29-12z" />
+            <path id="ray3" class="ray" fill="url(#cc)" d="m57 25-29 2 29-7z" />
+            <path id="ray4" class="ray" fill="url(#dd)" d="M57 14 28 26v1l29-7z" />
+          </g>
+        </svg>
+        <img
+          src="/static/logo-bg.svg"
+          alt="BEAM logo background"
+          class="logo-bg h-10 w-10 z-40 item-container scale-0 transition-transform duration-[600ms] ease-in-out will-change-transform"
+          style="grid-column: 1; grid-row: 1; opacity:0;"
+          loading="lazy"
+        />
+      </div>
+    </a>
+<!--    <a href="/">-->
+<!--      <img height="38px" alt="84" src="/static/fcs.png" class="px-md-0 me-md-3"/>-->
+<!--    </a>-->
+    <script>
+      $(document).ready(function () {
+        const $logoContainer = $('.beam-logo'); // Main logo container
+        const $maskCircle = $('#maskCircle'); // Mask circle element
+        const $logoBg = $('.logo-bg'); // Background image element
+
+        // GSAP Animation Setup
+        let animation = gsap.to($maskCircle, {
+          attr: { r: 30 },
+          paused: true,
+          duration: 0.6,
+          ease: "linear",
+        });
+
+        // Mouseover event
+        $logoContainer.on('mouseover', function () {
+          $(this).addClass('scale-125');
+          $(this).find('img').addClass('scale-125 rotate-90');
+          animation.play();
+          $logoBg.css('opacity', 1); // Make the logo background visible
+        });
+
+        // Mouseleave event
+        $logoContainer.on('mouseleave', function () {
+          $(this).removeClass('scale-125');
+          $(this).find('img').removeClass('scale-125 rotate-90');
+          animation.reverse();
+          $logoBg.css('opacity', 0); // Hide the logo background
+        });
+
+        // Touchend event (for touch devices)
+        $logoContainer.on('touchend', function () {
+          setTimeout(() => {
+            $(this).removeClass('scale-125');
+            $(this).find('img').removeClass('scale-125 rotate-90');
+            animation.reverse();
+          }, 1000);
+        });
+      });
+    </script>
+
+    <ul class="header-nav ms-auto">
+      <li class="nav-item">
+        <a class="nav-link" href="/disclaimer">Add Proposal</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/">Home</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/users">Users</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/about">About</a>
+      </li>
+      {% if not logged_in %}
+      <li class="nav-item">
+          <a class="nav-link" href="/login">Login</a>
+      </li>
+      {% endif %}
+    </ul>
+
+    {% if logged_in %}
+    <ul class="header-nav ms-3">
+        <li class="nav-item dropdown"><a class="nav-link py-0" data-coreui-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
+        <div class="avatar avatar-md"><img class="avatar-img" src="/static/lib/gravatar/avatar.png" alt="user@email.com"></div>
         </a>
-        <a class="navbar-brand-mobile" href="/" style="font-family:monospace;display:none;">Firo Crowdfunding System</a>
+        <div class="dropdown-menu dropdown-menu-end pt-0">
+          <div class="dropdown-header bg-light py-2">
+            <div class="fw-semibold">My Account</div>
+          </div>
 
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive"
-                aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        <div class="collapse navbar-collapse" id="navbarResponsive">
-            <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="/proposals">Proposals
-                        <span class="sr-only">(current)</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/proposal/add/disclaimer">Add Proposal</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/about">About</a>
-                </li>
-                <!-- <li class="nav-item">
-                    <a class="nav-link" href="/donate">Donate</a>
-                </li> -->
-                <!--li class="nav-item">
-                    <a class="nav-link" href="/api">API</a>
-                </li-->
-                {% if logged_in %}
-                <li class="nav-item">
-                    <a class="nav-link" href="/logout">Logout</a>
-                </li>
-                {% else %}
-                <li class="nav-item">
-                    <a class="nav-link" href="/login">Login</a>
-                </li>
-                {% endif %}
-            </ul>
+          <a class="dropdown-item" href="/logout">
+            <svg class="icon me-2">
+              <use xlink:href="/static/admin/vendors/@coreui/icons/svg/free.svg#cil-account-logout"></use>
+            </svg>
+            Logout
+          </a>
         </div>
-    </div>
-</nav>
+        </li>
+    </ul>
+      {% endif %}
+  </div>
+  <div class="header-divider"></div>
+  <div class="container-fluid">
+    <nav aria-label="breadcrumb">
+      <ol id="breadcrumb" class="breadcrumb my-0 ms-2">
+          <li class="breadcrumb-item ">
+            <span>
+                <a href="/">Home</a>
+            </span>
+          </li>
+      </ol>
+    </nav>
+  </div>
+</header>
+

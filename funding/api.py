@@ -1,7 +1,7 @@
 import re
 
 import requests
-from flask import jsonify, send_from_directory, Response
+from flask import jsonify, send_from_directory, Response, request
 from flask_yoloapi import endpoint, parameter
 
 from funding.bin.utils import get_ip
@@ -10,59 +10,73 @@ from funding.factory import app, cache
 from funding.orm import Proposal
 
 
-@app.route('/api/1/proposals')
-@endpoint.api(
-    parameter('status', type=int, location='args', default=1),
-    parameter('cat', type=str, location='args'),
-    parameter('limit', type=int, location='args', default=20),
-    parameter('offset', type=int, location='args', default=0)
-)
-def api_proposals_get(status, cat, limit, offset):
+@app.route('/api/1/proposals', methods=['GET'])
+def api_proposals_get():
+    # Extract query parameters manually
+    status = request.args.get('status', default=1, type=int)
+    cat = request.args.get('cat', default=None, type=str)
+    limit = request.args.get('limit', default=20, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+
     try:
+        # Fetch proposals with the extracted parameters
         proposals = Proposal.find_by_args(status=status, cat=cat, limit=limit, offset=offset)
     except Exception as ex:
         print(ex)
-        return 'error', 500
-    return [p.json for p in proposals]
+        return jsonify({'error': 'Failed to fetch proposals'}), 500
+
+    # Return proposals as JSON
+    return jsonify([p.json for p in proposals])
 
 
-@app.route('/api/1/convert/firo-usd')
-@endpoint.api(
-    parameter('amount', type=int, location='args', required=True)
-)
-def api_coin_usd(amount):
-    from funding.bin.utils import Summary, coin_to_usd
-    prices = Summary.fetch_prices()
-    return jsonify(usd=coin_to_usd(amt=amount, btc_per_coin=prices['coin-btc'], usd_per_btc=prices['btc-usd']))
+@app.route('/api/1/convert/beam-usd', methods=['GET'])
+def api_coin_usd():
+    # Extract 'amount' from query parameters
+    amount = request.args.get('amount', type=int)
+    if amount is None:
+        return jsonify({'error': 'Missing required parameter: amount'}), 400
+
+    try:
+        from funding.bin.utils import Summary, coin_to_usd
+        prices = Summary.fetch_prices()
+        usd_value = coin_to_usd(amt=amount, coin_usd=prices['coin-usd'])
+    except Exception as ex:
+        print(ex)
+        return jsonify({'error': 'Failed to fetch conversion rate'}), 500
+
+    return jsonify({'usd': usd_value})
 
 
-@app.route('/api/1/qr')
-@endpoint.api(
-    parameter('address', type=str, location='args', required=True)
-)
-def api_qr_generate(address):
-    """
-    Generate a QR image. Subject to IP throttling.
-    :param address: valid receiving address
-    :return:
-    """
+@app.route('/api/1/qr', methods=['GET'])
+def api_qr_generate():
+    # Extract 'address' from query parameters
+    address = request.args.get('address', type=str)
+    if not address:
+        return jsonify({'error': 'Missing required parameter: address'}), 400
+
     from funding.factory import cache
-
     qr = QrCodeGenerator()
-    if not qr.exists(address):
-        # create a new QR code
-        ip = get_ip()
-        cache_key = 'qr_ip_%s' % ip
-        hit = cache.get(cache_key)
 
-        if hit and ip not in ['127.0.0.1', 'localhost']:
-            return Response('Wait a bit before generating a new QR', 403)
+    try:
+        # Check if QR code already exists
+        if not qr.exists(address):
+            ip = get_ip()
+            cache_key = f'qr_ip_{ip}'
+            hit = cache.get(cache_key)
 
-        throttling_seconds = 3
-        cache.set(cache_key, {'wow': 'kek'}, throttling_seconds)
+            if hit and ip not in ['127.0.0.1', 'localhost']:
+                return Response('Wait a bit before generating a new QR', 403)
 
-        created = qr.create(address)
-        if not created:
-            raise Exception('Could not create QR code')
+            throttling_seconds = 3
+            cache.set(cache_key, {'wow': 'kek'}, throttling_seconds)
 
-    return send_from_directory('static/qr', '%s.png' % address)
+            # Create the QR code
+            created = qr.create(address)
+            if not created:
+                raise Exception('Could not create QR code')
+    except Exception as ex:
+        print(ex)
+        return jsonify({'error': 'Failed to generate QR code'}), 500
+
+    # Serve the QR code image
+    return send_from_directory('static/qr', f'{address}.png')

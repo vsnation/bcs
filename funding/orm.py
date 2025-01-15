@@ -130,9 +130,14 @@ class Proposal(db.Model):
     headline = db.Column(db.VARCHAR, nullable=False)
     content = db.Column(db.VARCHAR, nullable=False)
     category = db.Column(db.VARCHAR, nullable=False)
+    href = db.Column(db.String, nullable=False)
     date_added = db.Column(db.TIMESTAMP, default=datetime.now)
     html = db.Column(db.VARCHAR)
+    transactions = db.Column(db.JSON, default=[])
+    events = db.Column(db.JSON, default=[])
+    views = db.Column(db.Integer, default=0)
     last_edited = db.Column(db.TIMESTAMP)
+    discourse_topic_link = db.Column(db.String)
 
     # the FFS target
     funds_target = db.Column(db.Float, nullable=False)
@@ -175,17 +180,27 @@ class Proposal(db.Model):
     @property
     def json(self):
         return {
-            'date_posted_epoch': self.date_added.strftime('%s'),
-            'date_posted': self.date_added.strftime('%b %d %Y %H:%M:%S'),
+            'id': self.id,
             'headline': self.headline,
             'content_markdown': self.content,
+            'content_html': self.html,
             'category': self.category,
+            'date_added': self.date_added.isoformat(),
+            'last_edited': self.last_edited.isoformat() if self.last_edited else None,
             'funds_target': self.funds_target,
+            'funds_target_usd': self.funds_target_usd,
             'funded_pct': self.funds_progress,
+            'funds_withdrew': self.funds_withdrew,
             'addr_donation': self.addr_donation,
+            'addr_receiving': self.addr_receiving,
             'status': self.status,
             'user': self.user.username,
-            'id': self.id
+            'transactions': self.transactions,
+            'events': self.events,
+            'views': self.views,
+            'spends': self.spends,  # Includes amount and pct
+            'balance': self.balance,  # Includes sum, txs, pct, available
+            'comments_count': self.comment_count,
         }
 
     @classmethod
@@ -204,7 +219,7 @@ class Proposal(db.Model):
         prices = Summary.fetch_prices()
         if not prices:
             return
-        return coin_to_usd(amt=self.funds_target, btc_per_coin=prices['coin-btc'], usd_per_btc=prices['btc-usd'])
+        return coin_to_usd(amt=self.funds_target, coin_usd=prices['coin-usd'])
 
     @property
     def comment_count(self):
@@ -234,7 +249,10 @@ class Proposal(db.Model):
     @property
     def spends(self):
         amount = sum([p.amount for p in self.payouts])
-        pct = amount / 100 * self.balance['sum']
+        if self.balance['sum'] > 0:
+            pct = (amount / self.balance['sum']) * 100
+        else:
+            pct = 0
         return {"amount": amount, "pct": pct}
 
     @property
@@ -302,8 +320,7 @@ class Proposal(db.Model):
         prices = Summary.fetch_prices()
         for tx in data['txs']:
             if prices:
-                tx['amount_usd'] = coin_to_usd(amt=tx['amount_human'], btc_per_coin=prices['coin-btc'],
-                                               usd_per_btc=prices['btc-usd'])
+                tx['amount_usd'] = coin_to_usd(amt=tx['amount_human'], coin_usd=prices['coin-usd'])
 
         if data.get('sum', 0.0):
             data['pct'] = 100 / float(self.funds_target / data.get('sum', 0.0))

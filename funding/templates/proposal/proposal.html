@@ -1,226 +1,285 @@
 {% extends "base.html" %}
 {% block content %}
-<!-- Page Content -->
-<div class="container" style="margin-bottom:140px;">
-    {% include 'messages.html' %}
+
+<div class="body flex-grow-1 px-3">
+  <div class="container-lg proposal_view">
+    <div class="row row-header">
+      <div class="col-md-12 mb-1">
+        <h1>
+          {{ proposal.headline }}
+          <small>by
+            <a href="/users/{{ proposal.user.username }}">
+              {{ proposal.user.username }}
+            </a>
+          </small>
+        </h1>
+      </div>
+
+      <div class="col-md-12 mb-3">
+        <span style="border-radius:8px !important;font-size:20px;" class="badge bg-beam rounded-pill">
+          Goal: {{ proposal.funds_target|round }} BEAM
+          {% if proposal.funds_target_usd %}
+            (${{ proposal.funds_target_usd }})
+          {% endif %}
+        </span>
+
+        <span style="border-radius:8px !important;font-size:16px;margin-left: 4px;" class="badge bg-dark rounded-pill">
+          {{ proposal.category|capitalize }}
+        </span>
+      </div>
+    </div>
 
     <div class="row">
+      <div class="col-xl-8 col-md-12">
+        <div class="card card-proposal mb-4">
+          <div class="card-header">
+            Proposal
 
-        <!-- Post Content Column -->
-        <div class="col-lg-12">
-            <!-- Title -->
-            <h1 class="mt-4" style="margin-bottom: 0.1rem;">
-                {{ proposal.headline }}
-            </h1>
-
-            <p>
-                <span style="color:grey;">
-                Posted on {{ proposal.date_added.strftime('%Y-%m-%d') }} by <a href="/user/{{ proposal.user.username }}">{{ proposal.user.username}}</a>
-                </span>
-                <br>
-                <span>
-                Status:
-                {% if proposal.status == 0 %}
-                    <span style="color:red;">Disabled</span>
-                {% elif proposal.status == 1 %}
-                    Seeking community approval
-                {% elif proposal.status == 2 %}
-                    Seeking funding
-                {% elif proposal.status == 3 %}
-                    WIP / Help needed
-                {% elif proposal.status == 4 %}
-                    Completed
-                {% endif %}
-                </span>
-                {% if proposal.status <= 1 %}
-                <br>
-                <span>
-                    Target: <b>{{proposal.funds_target|round}}</b> FIRO
-                     {% if proposal.funds_target_usd %}
-                    <small>➞ {{proposal.funds_target_usd}} USD</small>
-                    {% endif %}
-                </span>
-                {% endif %}
-            </p>
-
-            <p>
-                {% if proposal.user.username == current_user.username or current_user.admin %}
-                    <a href="/proposal/{{proposal.id}}/edit">
-                        <button type="button" class="btn btn-success btn-sm">Edit</button>
-                    </a>
-                {% endif %}
-            </p>
-
-            {% if proposal.status in [2,3] %}
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="card my-4">
-                        <h5 class="card-header">Proposal</h5>
-                        <div class="card-body">
-                            <div class="row the-bar">
-                                <div class="col-lg-4">
-                                    <table class="table proposal-info-table">
-                                        <tbody>
-                                            <tr>
-                                                <td>Target</td>
-                                                <td>
-                                                    <span class="badge">{{proposal.funds_target|round}} FIRO
-                                                     {% if proposal.funds_target_usd %}
-                                                    <small>➞ {{proposal.funds_target_usd}} USD</small>
-                                                    {% endif %}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>Funded</td>
-                                                <td><span class="badge">{{proposal.balance['pct'] | round or 0}} %</span></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-lg-8">
-                                    {{proposal.balance['txs'] | length}} individual contributions
-                                    {% if proposal.balance['txs'] %}
-                                    <small>
-                                        <a style="margin:4px;" href="#incoming_txs">Details...</a>
-                                    </small>
-                                    {% endif %}
-                                    <div class="progress">
-                                        <div class="progress-bar progress-monero progress-bar-striped" style="width: 100.0%;">
-                                        </div>
-                                    </div>
-                                    <hr>
-                                </div>
-                                <div class="col-lg-8">
-                                    {{proposal.balance['available']|round(3) or 0 }} FIRO Raised
-                                    {% set remaining = proposal.funds_target - proposal.balance['available']|float|round(3) %}
-
-                                    <small>
-                                    {% if remaining > 0 %}
-                                        ({{ (proposal.funds_target - proposal.balance['available']|float|round(3)|int) }} FIRO until goal)
-                                    {% elif remaining < 0 %}
-                                        ({{ (proposal.balance['available']-proposal.funds_target|float|round(3)|int) }} FIRO past goal!)
-                                    {% endif %}
-                                    </small>
-
-                                    <div class="progress">
-                                        <div class="progress-bar progress-warning progress-bar" style="width: {{proposal.balance['pct']}}%;">
-                                        </div>
-                                    </div>
-                                    <hr>
-                                </div>
-                                <br/>
-
-                                <br/>
-                                <div class="col-lg-8">
-                                    {{ proposal.spends['amount'] }} FIRO Paid out <small>({{ proposal.spends['pct']|round(1) }}%)</small>
-                                    <div class="progress">
-                                        <!-- @todo: spends remaining pct -->
-                                        <div class="progress-bar progress-warning progress-bar" style="width: {{ proposal.spends['pct'] }}%;">
-                                        </div>
-                                    </div>
-                                    <hr>
-                                </div>
-                                <div class="col-lg-8">
-                                    {{ (proposal.balance['available']-proposal.spends['amount']) |round(3) or 0}} FIRO Available for payout :-)
-                                    <div class="progress">
-                                        <div class="progress-bar progress-warning progress-bar" style="width: {{proposal.balance['remaining_pct']}}%;">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <br/>
-                            </div>
-                            <div class="row" style="margin-top:32px;">
-                                <div class="col-lg-12">
-                                    Donation address:
-                                    <pre class="proposal_address">{% if proposal.addr_donation %}{{ proposal.addr_donation }}{% else %}<small>None generated yet</small>{% endif %}</pre>
-                                </div>
-
-                                {% if proposal.addr_donation %}
-                                <div class="col-lg-12">
-                                    <img class="proposal_qr" src="/api/1/qr?address={{ proposal.addr_donation }}">
-                                </div>
-                                {%  endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% elif proposal.status == 0 %}
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="alert alert-danger">
-                            This proposal is disabled.
-                        </div>
-                    </div>
-                </div>
+            {% if proposal.user.username == current_user.username or current_user.admin %}
+            <a class="float-end" href="/proposals/{{ proposal.href }}/edit">
+              <button style="margin-left: 8px;" type="button" class="btn btn-sm btn-dark">
+                <svg class="icon">
+                  <use xlink:href="/static/admin/vendors/@coreui/icons/svg/free.svg#cil-pencil"></use>
+                </svg>
+                Edit
+              </button>
+            </a>
             {% endif %}
 
-            <div class="proposal_content">
-                <!-- Post Content -->
-                {{proposal.html | safe}}
+            <span style="display: block;" class="badge bg-beam ms-auto float-end">
+              {% if proposal.status == 0 %}
+                Disabled
+              {% elif proposal.status == 1 %}
+                Idea
+              {% elif proposal.status == 2 %}
+                Seeking Funding
+              {% elif proposal.status == 3 %}
+                WIP
+              {% elif proposal.status == 4 %}
+                Completed
+              {% endif %}
+            </span>
+          </div>
+
+          <div class="card-body">
+            <style>.highlight { background: inherit; }</style>
+            <div class="markdown">
+              {{ proposal.content | markdown | safe }}
             </div>
+          </div>
+
+          <div class="card-footer">
+            <b>Added at</b>: <span title="{{ proposal.date_added.strftime('%Y-%m-%d %H:%M') }}">{{ proposal.date_added.strftime('%Y-%m-%d %H:%M') }}</span>
+            <span class="m-1 divider">|</span>
+            <b>Views</b>: {{ proposal.views }}
+            <span class="m-1 divider">|</span>
+            <b>Comments</b>: {{ proposal.comments_count }}
+            <span class="m-1 divider">|</span>
+            <b>Raw</b>: <a href="/proposals/{{ proposal.href }}.md">markdown</a>
+          </div>
         </div>
-    </div>
 
-    {% include 'comments.html' %}
+        {% if not proposal.comments or proposal.status.name == 'completed' %}
+          {% if proposal.discourse_topic_link %}
+          <a class="mb-3 d-block" target="_blank" href="{{ proposal.discourse_topic_link }}">
+            <button type="button" class="btn btn-success">
+              View proposal discussion on forum.beam.mw
+            </button>
+          </a>
+          {% endif %}
+        {% endif %}
 
-    {% from 'proposal/macros/transaction.html' import tx_item %}
+        <div class="card mb-4">
+          <div class="card-header">Events</div>
+          <div class="card-body m-0 p-0">
+            <ul class="list-group">
+              {% for event in proposal.events %}
+              <li class="proposal-event-item list-group-item d-flex justify-content-between align-items-center">
+                {{ event.description }}
+                <span class="badge bg-secondary rounded-pill">{{ event.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
 
-    {% if proposal.balance['txs'] %}
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card my-6" id="incoming_txs">
-                <h5 class="card-header">Incoming transactions <small>({{proposal.balance['txs']|length}})</small></h5>
-                <div class="card-body">
+      <div class="col-xl-4 col-md-12">
+        <div class="card mb-4">
+          <div class="card-header">Meta</div>
+          <div class="card-body">
+            <img alt="beam" style="width:100%;" class="mb-3" src="/static/firo-header.png">
+
+            <div class="row">
+              {% if proposal.status == 1 %}
+                <div class="col-lg-12">
+                  This proposal is completed. See the forum discussion thread for more information.
+                </div>
+              {% elif proposal.status == 2 %}
+              <!-- Status: Seeking Funding -->
+              <div class="col-lg-12">
+                {{ proposal.balance['txs'] | length }} individual contribution(s)
+
+                <small>
+                  <a style="margin:4px;" href="#card-txs">Details...</a>
+                </small>
+
+                <div class="progress">
+                  <div class="progress-bar progress-monero progress-bar-striped" style="width: 100.0%;"></div>
+                </div>
+                <hr>
+              </div>
+
+              <div class="col-lg-12">
+                {{ proposal.balance['available'] | round(3) }} BEAM Raised
+
+                (<b>{{ proposal.funds_target - proposal.balance['available'] | round(3) }} BEAM remaining</b>)
+
+                <div class="progress">
+                  <div class="progress-bar progress-warning progress-bar-striped" style="width: {{ 100 - proposal.balance['pct'] }}%;"></div>
+                </div>
+                <hr>
+              </div>
+
+              <div class="col-lg-12">
+                {{ proposal.spends['amount'] | round(3) }} BEAM Paid out <small>({{ proposal.spends['pct'] | round(1) }}%)</small>
+                <div class="progress">
+                  <div class="progress-bar progress-warning progress-bar-striped" style="width: {{ proposal.spends['pct'] }}%;"></div>
+                </div>
+                <hr>
+              </div>
+
+              <div class="col-lg-12 mb-4">
+                {{ proposal.balance['available'] - proposal.spends['amount'] | round(3) }} BEAM
+
+                Available for payout :-)
+                <div class="progress">
+                  <div class="progress-bar progress-warning progress-bar-striped" style="width: 100%;"></div>
+                </div>
+              </div>
+
+              <div class="col-lg-12 d-flex justify-content-center">
+                <h3>Donate</h3>
+              </div>
+
+              <div class="col-lg-12 mb-3 d-flex justify-content-center">
+                <img class="mb-4" id="qr_image" alt="qr" src="/lib/qr/{{ proposal.addr_donation }}">
+              </div>
+
+              <div class="col-lg-12 mb-4">
+                <div class="donation_address">{{ proposal.addr_donation or "No address generated yet" }}</div>
+              </div>
+
+              {% elif proposal.status == 3 %}
+              <!-- Status: WIP / Help Needed -->
+              <div class="col-lg-12">
+                {{ proposal.balance['txs'] | length }} individual contribution(s)
+
+                <small>
+                  <a style="margin:4px;" href="#card-txs">Details...</a>
+                </small>
+
+                <div class="progress">
+                  <div class="progress-bar progress-monero progress-bar-striped" style="width: 100.0%;"></div>
+                </div>
+                <hr>
+              </div>
+
+              <div class="col-lg-12">
+                {{ proposal.balance['available'] | round(3) }} BEAM Raised
+
+                ({{ proposal.balance['pct'] }}%)
+
+                <div class="progress">
+                  <div class="progress-bar progress-warning progress-bar-striped" style="width: 100.0%;"></div>
+                </div>
+                <hr>
+              </div>
+
+              <div class="col-lg-12">
+                {{ proposal.spends['amount'] | round(3) }} BEAM Paid out <small>({{ proposal.spends['pct'] | round(1) }}%)</small>
+                <div class="progress">
+                  <div class="progress-bar progress-warning progress-bar-striped" style="width: {{ proposal.spends['pct'] }}%;"></div>
+                </div>
+                <hr>
+              </div>
+
+              <div class="col-lg-12 mb-4">
+                {{ proposal.balance['available'] - proposal.spends['amount'] | round(3) }} BEAM
+
+                Available for payout :-)
+                <div class="progress">
+                  <div class="progress-bar progress-warning progress-bar-striped" style="width: 100%;"></div>
+                </div>
+              </div>
+
+              <div class="col-lg-12 mb-1">
+                <span class="text-dark">
+                  This proposal is fully funded and in development.
+                </span>
+              </div>
+
+              {% elif proposal.status == 4 %}
+              <!-- Status: Completed -->
+              <div class="col-lg-12">
+                This proposal is completed. See the forum discussion thread for more information.
+              </div>
+
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if proposal.transactions %}
+        <div id="card-txs" class="card mb-5 card-transactions">
+          <div class="card-header">Transactions</div>
+          <div class="card-body p-0">
+            <div class="accordion" id="accordionTxs">
+              {% for tx in proposal.transactions %}
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="heading{{ loop.index }}">
+                  <button class="accordion-button collapsed" type="button" data-coreui-toggle="collapse" data-coreui-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
+                    <span class="badge bg-{{ 'success' if tx.amount > 0 else 'beam' }} rounded-pill">
+                      {{ tx.amount }} BEAM
+                    </span>
+                    {% if tx.amount_usd %}
+                    <span style="margin-left:10px;" class="badge bg-dark rounded-pill">${{ tx.amount_usd }}</span>
+                    {% endif %}
+                  </button>
+                </h2>
+                <div class="accordion-collapse collapse" id="collapse{{ loop.index }}" aria-labelledby="heading{{ loop.index }}" data-coreui-parent="#accordionTxs">
+                  <div class="accordion-body m-0 p-0">
                     <ul class="list-group">
-                        {% for tx in proposal.balance['txs'] %}
-                            {{ tx_item(tx) }}
-                        {% endfor %}
+                      <li class="list-group-item">Amount: <code>{{ tx.amount }}</code></li>
+                      <li class="list-group-item">TXID: <code>{{ tx.txid }}</code></li>
+                      {% if tx.blockheight %}
+                      <li class="list-group-item">Blockheight: <code>{{ tx.blockheight }}</code></li>
+                      {% endif %}
+                      {% if tx.confirmations %}
+                      <li class="list-group-item">Confirmations: <code>{{ tx.confirmations }}</code></li>
+                      {% endif %}
+                      <li class="list-group-item">Date: <code>{{ tx.date.strftime('%Y-%m-%d %H:%M') }}</code></li>
                     </ul>
+                  </div>
                 </div>
+              </div>
+              {% endfor %}
             </div>
+          </div>
         </div>
+        {% endif %}
+      </div>
     </div>
-    <!-- /.row -->
-    {% endif %}
-
-    {% if proposal.payouts %}
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card my-6" id="incoming_txs">
-                    <h5 class="card-header">Outgoing transactions</h5>
-                    <div class="card-body">
-                        <ul class="list-group">
-                            {% for payout in proposal.payouts %}
-                                {{ tx_item(payout.as_tx) }}
-                            {% endfor %}
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    <!-- /.row -->
-    {% endif %}
-
-    {% from 'proposal/macros/comment.html' import comment_entry %}
-
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card my-6" id="incoming_txs">
-                <h5 id="comments" class="card-header">Events</h5>
-                <div class="card-body comments-panel">
-                    {% for c in proposal._comments if c.automated %}
-                        {{ comment_entry(c, proposal) }}
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
+  </div>
 </div>
+<style>
+  .row-header small {
+    font-size: 16px;
+  }
+</style>
+
+
+
 
 <script>
     $(document).ready(function(){
