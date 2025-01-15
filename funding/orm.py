@@ -23,6 +23,7 @@ class User(db.Model):
     __tablename__ = "users"
     id = db.Column('user_id', db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, index=True)
+    role = db.Column(db.Integer, default=0)
     password = db.Column(db.String(60))
     email = db.Column(db.String(50), unique=True, index=True)
     registered_on = db.Column(db.DateTime)
@@ -38,6 +39,7 @@ class User(db.Model):
             self.password = bcrypt.generate_password_hash(password).decode('utf8')
         self.uuid = uuid
         self.email = email
+        self.role = 1
         self.registered_on = datetime.utcnow()
 
     @property
@@ -49,7 +51,21 @@ class User(db.Model):
         return True
 
     @property
-    def is_anonymous(self):
+    def is_anon(self):
+        """
+            anonymous = 0
+            user = 1
+            moderator = 2
+            admin = 3
+        """
+        if self.role in [0, 1, 2, 3]:
+            return self.role == 0
+        return False
+
+    @property
+    def is_moderator(self):
+        if self.role in [0, 1, 2, 3]:
+            return self.role == 2
         return False
 
     @property
@@ -81,6 +97,14 @@ class User(db.Model):
         except Exception as ex:
             db.session.rollback()
             raise
+
+    async def to_json(self):
+        return {
+            "uuid": self.uuid,
+            "username": self.username,
+            "mail": self.mail,
+            "role": self.role,
+        }
 
 
 def getTransaction(txid):
@@ -130,7 +154,7 @@ class Proposal(db.Model):
     headline = db.Column(db.VARCHAR, nullable=False)
     content = db.Column(db.VARCHAR, nullable=False)
     category = db.Column(db.VARCHAR, nullable=False)
-    href = db.Column(db.String, nullable=False)
+    href = db.Column(db.String, nullable=False, unique=True)
     date_added = db.Column(db.TIMESTAMP, default=datetime.now)
     html = db.Column(db.VARCHAR)
     transactions = db.Column(db.JSON, default=[])
@@ -172,6 +196,7 @@ class Proposal(db.Model):
             raise Exception('faulty proposal')
         self.headline = headline
         self.content = content
+        self.events = []
         self.user_id = user.id
         if category not in settings.FUNDING_CATEGORIES:
             raise Exception('wrong category')
@@ -359,6 +384,23 @@ class Proposal(db.Model):
             q = q.offset(offset)
 
         return q.all()
+
+    async def set_status(self, status: int, user: User = None):
+        if status == self.status:
+            return
+        if user and not user.is_moderator:
+            raise Exception("insufficient permissions to change 'status'.")
+
+        if not self._is_new:
+            status_from = settings.FUNDING_STATUSES[self.status]
+            status_to = settings.FUNDING_STATUSES[status]
+
+            self.status = status
+            self.last_edited = datetime.now()
+
+            message = f"Status changed from '{status_from}' to '{status_to}'"
+            self.events.append({"message": message, "timestamp": int(datetime.utcnow().timestamp())})
+
 
     @classmethod
     def search(cls, key: str):

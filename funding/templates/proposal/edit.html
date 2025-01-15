@@ -48,12 +48,12 @@
                 <div class="form-group mb-4">
                     <label>Forum Topic Link</label>
                     <input id="discourse_topic_link" type="text" name="discourse_topic_link" class="form-control" placeholder="Link to the Beam Forum"
-                           value="{% if discourse_topic_link %}{{ discourse_topic_link }}{% endif %}" >
+                           value="{% if proposal and proposal.discourse_topic_link %}{{ proposal.discourse_topic_link }}{% endif %}" >
                 </div>
                 <div class="form-group">
                     <label>Content</label>
                     <textarea id="content" class="textarea" name="markdown" placeholder="Place some text here" style="width: 100%; height: 600px; font-size: 14px; line-height: 18px; border: 1px solid rgb(221, 221, 221); padding: 10px;">
-                        {% if content %}{{ content }}{% else %}{{ default_content }}{% endif %}
+{% if content %}{{ content }}{% else %}{{ default_content }}{% endif %}
                     </textarea>
                 </div>
 

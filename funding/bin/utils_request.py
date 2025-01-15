@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import markdown
 from flask import request
 import settings
@@ -5,6 +7,11 @@ from funding.bin.utils import Summary
 from funding.factory import app, db
 from funding.orm import User, Comment
 
+
+# Define a custom filter to format the timestamp
+@app.template_filter('format_timestamp')
+def format_timestamp(value):
+    return datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M')
 
 # Register a custom filter to render Markdown
 @app.template_filter('markdown')

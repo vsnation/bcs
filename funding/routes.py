@@ -22,6 +22,7 @@ from funding.orm import Proposal, User, Comment
 
 
 @app.route('/')
+@app.route('/proposals')
 def index():
     proposals = Proposal.find_by_args(status=1) + Proposal.find_by_args(status=2) + \
                 Proposal.find_by_args(status=3) + Proposal.find_by_args(status=4)
@@ -91,7 +92,7 @@ def proposal_add_disclaimer():
 # Add proposal form
 @app.route('/disclaimer/add')
 def proposal_add():
-    if current_user.is_anonymous:
+    if current_user.is_anon:
         return make_response(redirect(url_for('login')))
     default_content = settings.PROPOSAL_CONTENT_DEFAULT
     return make_response(render_template('proposal/edit.html', default_content=default_content))
@@ -114,7 +115,7 @@ def proposal_api_upsert():
     category = data.get('category', settings.FUNDING_CATEGORIES[0])
     status = 1
 
-    if current_user.is_anonymous:
+    if current_user.is_anon:
         return make_response(jsonify('User not authenticated'), 401)
 
     # Validate inputs
@@ -163,6 +164,8 @@ def proposal_api_upsert():
         if category:
             p.category = category
 
+        p.events.append({"message": "Proposal updated", "timestamp": int(datetime.utcnow().timestamp())})
+
         # Handle status change with automated comment
         if p.status != status and current_user.admin:
             msg = f"Moved to status \"{settings.FUNDING_STATUSES[status].capitalize()}\"."
@@ -198,6 +201,8 @@ def proposal_api_upsert():
         p.addr_donation = "0x00000000"  # Placeholder for donation address
         p.payment_id = "0x00000000"  # Placeholder for payment ID
         p.discourse_topic_link = discourse_topic_link
+
+        p.events.append({"message": "Proposal created", "timestamp": int(datetime.utcnow().timestamp())})
 
         db.session.add(p)
 
@@ -235,24 +240,26 @@ def markdown_to_html():
 
 @app.route('/proposals/<slug>')
 def proposals(slug):
+    p = Proposal.query.filter_by(href=slug).first()
     # Check if the URL ends with `.md`
     if slug.endswith('.md'):
         # Strip the `.md` part to get the actual slug
-        slug = slug[:-3]
 
-        # Find the proposal by its href
-        p = Proposal.query.filter_by(href=slug).first()
+        slug = slug[:-3]
         if not p:
             return make_response("Proposal not found", 404)
+        # Find the proposal by its href
 
         # Return the markdown content as plain text
         return make_response(p.content, 200, {'Content-Type': 'text/plain; charset=utf-8'})
 
     # Otherwise, render the proposal page
     else:
-        p = Proposal.query.filter_by(href=slug).first()
         if not p:
             return make_response(redirect(url_for('index')))
+
+        p.views += 1
+        db.session.commit()
 
         # Get associated comments and other data
         p.get_comments()
