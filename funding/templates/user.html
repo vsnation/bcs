@@ -21,29 +21,6 @@
                 <hr>
         </div>
     </div>
-    <div class="row">
-        <div class="col-lg-12">
-            Comments made by {{user.username}}
-            {% if user.comments %}
-                <table class="table table-proposal table-hover" style="margin-bottom:6px;">
-                    <tbody>
-                        <th>Comment</th>
-                        <th>Proposal</th>
-                        <th>Date</th>
-                        {% for y in user.comments | sort(attribute='date_added', reverse=True) %}
-                        <tr>
-                            <td><b><a href="/proposals/{{y.proposal.href}}#comment-{{ y.id }}">{{ y.message | truncate(32)}}</a></b></td>
-                            <td><a href="/proposals/{{y.proposal.href}}">#{{y.proposal.id }} {{ y.proposal.headline | truncate(32) }}</a></td>
-                            <td>{{ y.date_added.strftime('%Y-%m-%d') }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                This user has not submitted any proposals yet.
-            {% endif %}
-        </div>
-    </div>
     <br>
 
 </div>

@@ -1,52 +1,17 @@
-# Firo Funding System
+# BEAM Funding System
 
 A simple Flask application for managing donations.
 
 Example
 -------
 
-[https://fcs.firo.org](https://fcs.firo.org)
+[https://funding.beam.mw](funding.beam.mw)
 
 ## Installation
 
 Good luck with trying to get this to run! Some pointers:
 
-Make sure you have a machine with about 200GB of space.
-
-
-### How to install Firo Wallet/Node on Ubuntu
-
-#### Download and unzip last release 
-
-<code>wget https://github.com/firoorg/firo/releases/download/v0.14.8.0/firo-0.14.8.0-linux64.tar.gz | tar -xvf</code>
-
-#### Send files to binary folder
-
-<code>cd firo-0.14.8; cp bin/* /usr/local/bin</code>
-```
-firo-cli help
-```
-
-#### Create config file
-nano /root/.firo/firo.config
-
-<pre>
-#----
-rpcuser=user
-rpcpassword=password
-rpcallowip=127.0.0.1
-rpcport=8332
-#----
-listen=1
-server=1
-daemon=1
-logtimestamps=1
-txindex=1
-</pre>
-
-#### Run node as daemon with systemctl
-https://github.com/firoorg/firo/wiki/Configuring-masternode-with-systemd
-
+Make sure you have a machine with about 50GB of space.
 
 ### Install postgres
 ```
@@ -65,10 +30,10 @@ Download application and configure.
 sudo apt install libjpeg-dev libpng-dev python3 redis-server postgresql-server-dev-*
 sudo apt install python3-virtualenv
 sudo apt install python3-venv
-git clone https://github.com/firoorg/fcs.git
-cd fcs
-python3 -m venv yourvirtualenviornment
-source yourvirtualenviornment/bin/activate
+git clone https://github.com/BeamMW/bcs.git
+cd bcs
+python3 -m venv venv
+source venv/bin/activate
 pip uninstall pillow
 pip install wheel
 pip install -r requirements.txt
@@ -109,7 +74,7 @@ UPDATE users SET admin = TRUE WHERE user_id = your_number;
 ```
 ### Contributors
 
-- [camthegeek](https://github.com/camthegeek)
+- [vsnation](https://github.com/vsnation)
 
 ### License
 

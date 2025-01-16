@@ -18,6 +18,13 @@ class Summary:
     @cache.cached(timeout=600, key_prefix="fetch_prices")
     def fetch_prices():
         _rates = coin_btc_usd_value()
+        if not _rates:
+            _rates = {
+          "beam": {
+                      "usd": 0.055541,
+                          "btc": 5.5184e-7
+                            }
+          }
         return {
             'coin-btc': _rates['beam']['btc'],
             'coin-usd': _rates['beam']['usd'],
@@ -66,15 +73,16 @@ def price_cmc_btc_usd():
 def coin_btc_usd_value():
     headers = {
         'User-Agent': 'Mozilla/5.0 (Android 4.4; Mobile; rv:41.0) Gecko/41.0 Firefox/41.0',
-        'accept': 'application/json',
-        # 'x-cg-pro-api-key': settings.CG_API_KEY
+        #'accept': 'application/json',
+        'x-cg-pro-api-key': settings.CG_API_KEY
    }
     try:
         r = requests.get('https://api.coingecko.com/api/v3/simple/price?ids=beam&vs_currencies=usd,btc', headers=headers)
+        print(r.content)
         r.raise_for_status()
         return r.json()
     except:
-        return
+        return None
 
 def coin_to_usd(amt: float, coin_usd: float):
     try:

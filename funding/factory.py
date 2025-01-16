@@ -64,6 +64,8 @@ def create_app():
     app.config['PERMANENT_SESSION_LIFETIME'] = 2678400
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 30
+    #app.config['SERVER_NAME'] = 'funding.beamprivacy.community'
+    #app.config['PREFERRED_URL_SCHEME'] = 'https'
 
     app.secret_key = settings.SECRET
 
